@@ -1,11 +1,33 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'config/env.dart';
+import 'firebase_config.dart';
 import 'screens/home_feed_screen.dart';
 import 'screens/log_dog_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/collections_screen.dart';
 import 'screens/notifications_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: FirebaseConfig.currentPlatform);
+
+  if (Env.useEmulator) {
+    try {
+      FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+      await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+      FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+      debugPrint('[Firebase] Connected to local emulators');
+    } catch (e) {
+      debugPrint('[Firebase] Emulator connection failed: $e');
+      debugPrint('[Firebase] Is "firebase emulators:start" running?');
+    }
+  }
+
   runApp(const LogYourDogApp());
 }
 

@@ -1,3 +1,8 @@
+// Firestore collection: users/{userId}
+// Document ID = Firebase Auth uid
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserProfile {
   final String id;
   final String displayName;
@@ -64,6 +69,35 @@ class UserProfile {
       bio: json['bio'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  /// Serializes to Firestore document body (excludes id — that's the doc ID).
+  Map<String, dynamic> toFirestore() {
+    return {
+      'displayName': displayName,
+      'email': email,
+      'profilePictureUrl': profilePictureUrl,
+      'location': location,
+      'bio': bio,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  factory UserProfile.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data()!;
+    return UserProfile(
+      id: doc.id,
+      displayName: data['displayName'] as String,
+      email: data['email'] as String,
+      profilePictureUrl: data['profilePictureUrl'] as String?,
+      location: data['location'] as String?,
+      bio: data['bio'] as String?,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
     );
   }
 

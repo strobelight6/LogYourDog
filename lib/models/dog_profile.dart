@@ -1,3 +1,7 @@
+// Firestore collection: dogProfiles/{dogId}
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class DogProfile {
   final String id;
   final String ownerId;
@@ -120,6 +124,47 @@ class DogProfile {
       timesLogged: json['timesLogged'] as int? ?? 0,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  /// Serializes to Firestore document body (excludes id — that's the doc ID).
+  Map<String, dynamic> toFirestore() {
+    return {
+      'ownerId': ownerId,
+      'name': name,
+      'breed': breed,
+      'color': color,
+      'photoUrl': photoUrl,
+      'description': description,
+      'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
+      'gender': gender,
+      'weight': weight,
+      'timesLogged': timesLogged,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  factory DogProfile.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data()!;
+    return DogProfile(
+      id: doc.id,
+      ownerId: data['ownerId'] as String,
+      name: data['name'] as String,
+      breed: data['breed'] as String,
+      color: data['color'] as String,
+      photoUrl: data['photoUrl'] as String?,
+      description: data['description'] as String?,
+      birthDate: data['birthDate'] != null
+          ? (data['birthDate'] as Timestamp).toDate()
+          : null,
+      gender: data['gender'] as String?,
+      weight: (data['weight'] as num?)?.toDouble(),
+      timesLogged: data['timesLogged'] as int? ?? 0,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
     );
   }
 

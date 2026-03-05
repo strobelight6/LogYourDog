@@ -1,3 +1,8 @@
+// Firestore collection: dogPosts/{postId}
+// Comments are stored as a subcollection: dogPosts/{postId}/comments/{commentId}
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class DogPost {
   final String id;
   final String userId;
@@ -97,6 +102,46 @@ class DogPost {
       'likedByUserIds': likedByUserIds,
       'comments': comments.map((c) => c.toJson()).toList(),
     };
+  }
+
+  /// Serializes to Firestore document body (excludes id — that's the doc ID).
+  /// Comments are stored in a subcollection, not embedded here.
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'userName': userName,
+      'userProfilePicture': userProfilePicture,
+      'dogName': dogName,
+      'breed': breed,
+      'color': color,
+      'location': location,
+      'rating': rating,
+      'photoUrl': photoUrl,
+      'taggedDogId': taggedDogId,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'likedByUserIds': likedByUserIds,
+    };
+  }
+
+  factory DogPost.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data()!;
+    return DogPost(
+      id: doc.id,
+      userId: data['userId'] as String,
+      userName: data['userName'] as String,
+      userProfilePicture: data['userProfilePicture'] as String?,
+      dogName: data['dogName'] as String,
+      breed: data['breed'] as String,
+      color: data['color'] as String,
+      location: data['location'] as String,
+      rating: data['rating'] as int,
+      photoUrl: data['photoUrl'] as String?,
+      taggedDogId: data['taggedDogId'] as String?,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      likedByUserIds: List<String>.from(data['likedByUserIds'] as List? ?? []),
+    );
   }
 
   factory DogPost.fromJson(Map<String, dynamic> json) {

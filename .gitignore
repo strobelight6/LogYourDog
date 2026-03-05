@@ -43,3 +43,29 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase secrets — never commit
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+.firebaserc
+firebase.json
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.p12
+*.keystore
+secrets.dart
+secrets/
+android/key.properties
+
+# macOS
+.DS_Store
+
+# Coverage
+coverage/
+
+# pubspec.lock is committed for apps (not packages); remove this line if intentionally excluded
+# pubspec.lock

@@ -44,7 +44,7 @@ class _AddDogScreenState extends State<AddDogScreen> {
     'Rottweiler',
     'Yorkshire Terrier',
     'Dachshund',
-    'Mini Dachshund'
+    'Mini Dachshund',
     'Siberian Husky',
     'Border Collie',
     'Boxer',
@@ -386,7 +386,7 @@ class _AddDogScreenState extends State<AddDogScreen> {
 
               // Gender dropdown
               DropdownButtonFormField<String>(
-                value: _selectedGender,
+                initialValue: _selectedGender,
                 decoration: const InputDecoration(
                   labelText: 'Gender (Optional)',
                   border: OutlineInputBorder(),

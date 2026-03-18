@@ -13,7 +13,6 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   List<DogPost> _posts = [];
   bool _isLoading = true;
-  bool _hasInitializedMockData = false;
   static const String _currentUserId = 'user_current'; // Mock current user
 
   @override
@@ -28,12 +27,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     });
 
     try {
-      // Initialize mock data if this is the first load
-      if (!_hasInitializedMockData) {
-        await FeedService.instance.generateMockData();
-        _hasInitializedMockData = true;
-      }
-
       final posts = await FeedService.instance.getFeedPosts();
       setState(() {
         _posts = posts;

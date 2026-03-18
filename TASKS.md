@@ -6,21 +6,23 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 
 ## Feature 1: Firebase Setup
 
-**1.1 — Add Firebase dependencies**
-- Add `firebase_core`, `cloud_firestore`, `firebase_auth`, `firebase_storage`, `firebase_messaging` to `pubspec.yaml`
-- Add `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) placeholders with setup instructions
-- Initialize Firebase in `main.dart`
+**[x] 1.1 — Add Firebase dependencies**
+- Added `firebase_core`, `cloud_firestore`, `firebase_auth`, `firebase_storage` to `pubspec.yaml`
+- `firebase_messaging` deferred to Feature 7.3 — requires iOS push notification entitlement enabled in Xcode first
+- Firebase initialized in `main.dart` via `FirebaseConfig.currentPlatform` (env-based, no hardcoded keys)
+- Local testing via Firebase Emulator Suite — see CLAUDE.md for setup
 
-**1.2 — Create Firestore data layer**
-- Define Firestore collection/document structure for: `users`, `dogProfiles`, `dogPosts`, `follows`, `notifications`
-- Add `toFirestore()` / `fromFirestore()` serialization to all models (`UserProfile`, `DogProfile`, `DogPost`)
-- Add missing models: `Follow` and `AppNotification`
+**[x] 1.2 — Create Firestore data layer**
+- Firestore collection structure defined in CLAUDE.md and as header comments in each model file
+- `toFirestore()` / `fromFirestore()` added to `UserProfile`, `DogProfile`, `DogPost`
+- Added `Follow` model (`lib/models/follow.dart`)
+- Added `AppNotification` model with `NotificationType` enum (`lib/models/notification.dart`)
 
 ---
 
 ## Feature 2: Authentication & Onboarding
 
-**2.1 — Auth screens**
+**[x] 2.1 — Auth screens**
 - Create `login_screen.dart` — email/password sign-in form with Firebase Auth
 - Create `signup_screen.dart` — email/password registration form
 - Wire up `FirebaseAuth.signInWithEmailAndPassword` and `createUserWithEmailAndPassword`
@@ -52,6 +54,21 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - Rewrite `feed_service.dart` to read/write `DogPost` from Firestore `dogPosts` collection
 - Query posts ordered by `createdAt` descending
 - Remove all mock/seed data
+
+---
+
+## Feature 3.5: Firestore Security Rules
+
+**3.5.1 — Write and deploy security rules**
+- Create `firestore.rules` with deny-by-default baseline
+- `users/{userId}`: read by any authenticated user; write only by owner (`request.auth.uid == userId`)
+- `dogProfiles/{profileId}`: read by any authenticated user; write only by owner
+- `dogPosts/{postId}`: read by any authenticated user; write only by author; delete only by author
+- `dogPosts/{postId}/comments/{commentId}`: read by any authenticated user; write only by comment author
+- `follows/{followId}`: read by any authenticated user; write only if `followerId == request.auth.uid`
+- `notifications/{notificationId}`: read/write only by the recipient (`request.auth.uid == resource.data.userId`)
+- Deploy via `firebase deploy --only firestore:rules`
+- Verify rules against the emulator using the Firebase Rules Playground
 
 ---
 
@@ -123,6 +140,8 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - Mark notifications as read on tap
 
 **7.3 — Push notifications**
+- Enable Push Notifications capability in Xcode (Signing & Capabilities tab) before starting
+- Add `firebase_messaging: ^15.1.3` to `pubspec.yaml`
 - Integrate `firebase_messaging` — request permission, save FCM token to user's Firestore doc
 - Handle foreground and background messages
 - Wire `notifyNewFollower` and `notifyPostLiked` to send FCM via Cloud Function or direct API call
@@ -148,6 +167,18 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - Add `geolocator` package
 - In `log_dog_screen.dart`, add "Use my location" button that auto-fills a city/region string
 - Location is opt-in; allow manual text entry as fallback
+
+---
+
+## Feature 10: Pre-launch Security
+
+**10.1 — Firebase App Check**
+- Enable App Check in the Firebase console (use DeviceCheck on iOS, Play Integrity on Android)
+- Add `firebase_app_check` to `pubspec.yaml`
+- Initialize App Check in `main.dart` before other Firebase services
+- Use debug provider for emulator/simulator; production providers for release builds
+- Enforce App Check in the Firebase console for Firestore and Storage (enforcement blocks requests without a valid attestation)
+- Note: requires a signed production build to test end-to-end; do this step with a release candidate
 
 ---
 

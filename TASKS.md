@@ -59,7 +59,7 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 
 ## Feature 3.5: Firestore Security Rules
 
-**3.5.1 — Write and deploy security rules**
+**[x] 3.5.1 — Write and deploy security rules**
 - Create `firestore.rules` with deny-by-default baseline
 - `users/{userId}`: read by any authenticated user; write only by owner (`request.auth.uid == userId`)
 - `dogProfiles/{profileId}`: read by any authenticated user; write only by owner

@@ -1,9 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Emulator: allow all reads/writes. Tighten these for production.
-    match /{document=**} {
-      allow read, write: if true;
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function onlyField(field) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([field]);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthed();
+      allow create, update, delete: if isAuthed() && isOwner(userId);
+    }
+
+    match /dogProfiles/{profileId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed() && isOwner(request.resource.data.ownerId);
+      allow update, delete: if isAuthed() && isOwner(resource.data.ownerId);
+    }
+
+    match /dogPosts/{postId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed() && isOwner(request.resource.data.userId);
+      allow update: if isAuthed() && (
+        isOwner(resource.data.userId) ||
+        onlyField('likedByUserIds')
+      );
+      allow delete: if isAuthed() && isOwner(resource.data.userId);
+
+      match /comments/{commentId} {
+        allow read: if isAuthed();
+        allow create: if isAuthed() && isOwner(request.resource.data.userId);
+        allow update, delete: if isAuthed() && isOwner(resource.data.userId);
+      }
+    }
+
+    match /follows/{followId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed() && isOwner(request.resource.data.followerId);
+      allow update: if false;
+      allow delete: if isAuthed() && isOwner(resource.data.followerId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isAuthed() && isOwner(resource.data.recipientId);
+      allow create: if isAuthed();
     }
   }
 }

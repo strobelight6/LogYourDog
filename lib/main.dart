@@ -7,9 +7,11 @@ import 'config/env.dart';
 import 'firebase_config.dart';
 import 'screens/home_feed_screen.dart';
 import 'screens/log_dog_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/collections_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +44,27 @@ class LogYourDogApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),
-      home: const MainNavigationScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: AuthService.instance.authStateChanges,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasData) {
+          return const MainNavigationScreen();
+        }
+        return const LoginScreen();
+      },
     );
   }
 }

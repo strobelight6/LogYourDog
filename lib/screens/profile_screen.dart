@@ -4,6 +4,7 @@ import 'dart:io';
 import '../models/user_profile.dart';
 import '../models/dog_post.dart';
 import '../models/dog_profile.dart';
+import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/feed_service.dart';
 import '../services/dog_service.dart';
@@ -505,6 +506,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: _isLoading ? null : _editProfile,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => AuthService.instance.signOut(),
           ),
         ],
       ),

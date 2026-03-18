@@ -28,11 +28,11 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - Wire up `FirebaseAuth.signInWithEmailAndPassword` and `createUserWithEmailAndPassword`
 - Show validation errors inline
 
-**2.2 — Onboarding screen**
+**[x] 2.2 — Onboarding screen**
 - Create `onboarding_screen.dart` — after sign-up, prompt for display name, profile photo, and location (all optional)
 - Save initial `UserProfile` document to Firestore on completion
 
-**2.3 — Auth gate**
+**[x] 2.3 — Auth gate**
 - Wrap `main.dart` in an `AuthGate` widget that listens to `FirebaseAuth.authStateChanges()`
 - Redirect unauthenticated users to login; authenticated users to home feed
 - Create `AuthService` in `lib/services/auth_service.dart` with `signIn`, `signUp`, `signOut`
@@ -41,16 +41,16 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 
 ## Feature 3: Firebase-backed Services
 
-**3.1 — Replace ProfileService with Firestore**
+**[x] 3.1 — Replace ProfileService with Firestore**
 - Rewrite `profile_service.dart` to read/write `UserProfile` from Firestore `users` collection
 - Remove all `SharedPreferences` usage
 - Keep the same public API so existing screens don't break
 
-**3.2 — Replace DogService with Firestore**
+**[x] 3.2 — Replace DogService with Firestore**
 - Rewrite `dog_service.dart` to read/write `DogProfile` from Firestore `dogProfiles` collection
 - Remove all `SharedPreferences` usage
 
-**3.3 — Replace FeedService with Firestore**
+**[x] 3.3 — Replace FeedService with Firestore**
 - Rewrite `feed_service.dart` to read/write `DogPost` from Firestore `dogPosts` collection
 - Query posts ordered by `createdAt` descending
 - Remove all mock/seed data

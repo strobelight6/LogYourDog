@@ -13,12 +13,12 @@ class ProfileService {
     return _instance!;
   }
 
-  Future<UserProfile> loadProfile() async {
+  Future<UserProfile> loadProfile({String? uid}) async {
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return UserProfile.defaultProfile;
+      final targetUid = uid ?? FirebaseAuth.instance.currentUser?.uid;
+      if (targetUid == null) return UserProfile.defaultProfile;
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(targetUid).get();
       if (doc.exists) {
         return UserProfile.fromFirestore(doc);
       }

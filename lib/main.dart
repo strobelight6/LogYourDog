@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/collections_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/search_screen.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -87,6 +88,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   List<Widget> get _screens => <Widget>[
     HomeFeedScreen(),
+    SearchScreen(),
     CollectionsScreen(),
     LogDogScreen(onDogLogged: _navigateToFeed),
     NotificationsScreen(),
@@ -109,6 +111,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Feed',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.collections),

@@ -76,6 +76,7 @@ class UserProfile {
   Map<String, dynamic> toFirestore() {
     return {
       'displayName': displayName,
+      'displayNameLower': displayName.toLowerCase(),
       'email': email,
       'profilePictureUrl': profilePictureUrl,
       'location': location,

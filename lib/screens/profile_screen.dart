@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -5,6 +6,7 @@ import '../models/user_profile.dart';
 import '../models/dog_post.dart';
 import '../models/dog_profile.dart';
 import '../services/auth_service.dart';
+import '../services/follow_service.dart';
 import '../services/profile_service.dart';
 import '../services/feed_service.dart';
 import '../services/dog_service.dart';
@@ -12,7 +14,9 @@ import '../widgets/activity_item.dart';
 import '../screens/add_dog_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final String? userId;
+
+  const ProfileScreen({super.key, this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -25,6 +29,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   bool _isLoading = true;
   bool _isActivityLoading = false;
   bool _isDogsLoading = false;
+  int _followerCount = 0;
+  int _followingCount = 0;
+  bool _isFollowing = false;
+  late final bool _isOwnProfile;
+  late final String _targetUid;
 
   @override
   bool get wantKeepAlive => true;
@@ -32,26 +41,43 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   @override
   void initState() {
     super.initState();
+    final currentUid = FirebaseAuth.instance.currentUser!.uid;
+    _targetUid = widget.userId ?? currentUid;
+    _isOwnProfile = widget.userId == null || widget.userId == currentUid;
     _loadProfile();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh activity when screen becomes visible
-    if (!_isLoading && !_isActivityLoading) {
+    // Refresh activity when screen becomes visible (own profile only)
+    if (_isOwnProfile && !_isLoading && !_isActivityLoading) {
       _loadRecentActivity();
     }
   }
 
   Future<void> _loadProfile() async {
-    final profile = await ProfileService.instance.loadProfile();
+    final results = await Future.wait([
+      ProfileService.instance.loadProfile(uid: _targetUid),
+      FollowService.instance.getFollowers(_targetUid),
+      FollowService.instance.getFollowing(_targetUid),
+      if (!_isOwnProfile) FollowService.instance.isFollowing(_targetUid),
+    ]);
+
+    final profile = results[0] as UserProfile;
+    final followers = results[1] as List<String>;
+    final following = results[2] as List<String>;
+
     setState(() {
       _userProfile = profile;
+      _followerCount = followers.length;
+      _followingCount = following.length;
+      if (!_isOwnProfile) {
+        _isFollowing = results[3] as bool;
+      }
       _isLoading = false;
     });
-    
-    // Load recent activity and owned dogs after profile is loaded
+
     await _loadRecentActivity();
     await _loadOwnedDogs();
   }
@@ -97,6 +123,31 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading dogs: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    final wasFollowing = _isFollowing;
+    setState(() {
+      _isFollowing = !wasFollowing;
+      _followerCount += wasFollowing ? -1 : 1;
+    });
+    try {
+      if (wasFollowing) {
+        await FollowService.instance.unfollowUser(_targetUid);
+      } else {
+        await FollowService.instance.followUser(_targetUid);
+      }
+    } catch (e) {
+      setState(() {
+        _isFollowing = wasFollowing;
+        _followerCount += wasFollowing ? 1 : -1;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
@@ -500,18 +551,20 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(_isOwnProfile ? 'Profile' : _userProfile.displayName),
         backgroundColor: Colors.brown.shade50,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: _isLoading ? null : _editProfile,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => AuthService.instance.signOut(),
-          ),
-        ],
+        actions: _isOwnProfile
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: _isLoading ? null : _editProfile,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: () => AuthService.instance.signOut(),
+                ),
+              ]
+            : [],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -553,6 +606,30 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                       ],
                     ),
                   ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_followerCount ${_followerCount == 1 ? 'Follower' : 'Followers'} · $_followingCount Following',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  if (!_isOwnProfile) ...[
+                    const SizedBox(height: 12),
+                    _isFollowing
+                        ? OutlinedButton(
+                            onPressed: _toggleFollow,
+                            child: const Text('Unfollow'),
+                          )
+                        : ElevatedButton(
+                            onPressed: _toggleFollow,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.brown,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Follow'),
+                          ),
+                  ],
                 ],
               ),
             ),
@@ -575,23 +652,24 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'My Dogs',
-                  style: TextStyle(
+                Text(
+                  _isOwnProfile ? 'My Dogs' : 'Dogs',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _addDog,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Dog'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.brown,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                if (_isOwnProfile)
+                  ElevatedButton.icon(
+                    onPressed: _addDog,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Dog'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.brown,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 16),

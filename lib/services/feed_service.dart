@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/dog_post.dart';
+import 'follow_service.dart';
 
 class FeedService {
   static FeedService? _instance;
@@ -15,13 +17,40 @@ class FeedService {
   CollectionReference<Map<String, dynamic>> get _col =>
       FirebaseFirestore.instance.collection('dogPosts');
 
-  Future<List<DogPost>> getFeedPosts({int? limit}) async {
+  Future<List<DogPost>> getFeedPosts({int? limit, String? currentUserId}) async {
     try {
-      Query<Map<String, dynamic>> query =
-          _col.orderBy('createdAt', descending: true);
-      if (limit != null) query = query.limit(limit);
-      final snap = await query.get();
-      return snap.docs.map((d) => DogPost.fromFirestore(d)).toList();
+      final uid = currentUserId ?? FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return [];
+
+      final followingIds = await FollowService.instance.getFollowing(uid);
+      if (followingIds.isEmpty) return [];
+
+      // Firestore whereIn supports up to 30 values; batch if needed
+      final batches = <List<String>>[];
+      for (var i = 0; i < followingIds.length; i += 30) {
+        batches.add(followingIds.sublist(
+          i,
+          i + 30 > followingIds.length ? followingIds.length : i + 30,
+        ));
+      }
+
+      final results = await Future.wait(batches.map((batch) {
+        Query<Map<String, dynamic>> query = _col
+            .where('userId', whereIn: batch)
+            .orderBy('createdAt', descending: true);
+        if (limit != null) query = query.limit(limit);
+        return query.get();
+      }));
+
+      final posts = results
+          .expand((snap) => snap.docs.map((d) => DogPost.fromFirestore(d)))
+          .toList();
+
+      posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (limit != null && posts.length > limit) {
+        return posts.sublist(0, limit);
+      }
+      return posts;
     } catch (e) {
       debugPrint('Error loading feed: $e');
       return [];

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/dog_post.dart';
 import '../services/feed_service.dart';
@@ -13,11 +14,12 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   List<DogPost> _posts = [];
   bool _isLoading = true;
-  static const String _currentUserId = 'user_current'; // Mock current user
+  late final String _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _currentUserId = FirebaseAuth.instance.currentUser!.uid;
     _loadFeed();
   }
 

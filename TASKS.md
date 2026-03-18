@@ -74,25 +74,25 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 
 ## Feature 4: Follow System
 
-**4.1 — Follow model + service**
+**[x] 4.1 — Follow model + service**
 - Add `Follow` model to `lib/models/follow.dart`
 - Create `lib/services/follow_service.dart` with: `followUser`, `unfollowUser`, `isFollowing`, `getFollowers`, `getFollowing`
 - Write to Firestore `follows` collection
 
-**4.2 — Follow UI on profiles**
+**[x] 4.2 — Follow UI on profiles**
 - Add follow/unfollow button to `profile_screen.dart` (hidden on own profile)
 - Display follower count and following count on `profile_screen.dart`
 - Wire counts to live Firestore queries
 
-**4.3 — User search screen**
+**[x] 4.3 — User search screen**
 - Create `lib/screens/search_screen.dart`
-- Search Firestore `users` by `displayName`
+- Search Firestore `users` by `displayNameLower` (case-insensitive prefix match)
 - Show profile photo, display name, follower count, and follow button in results
 - Add search tab to main navigation
 
-**4.4 — Feed filtered to following**
+**[x] 4.4 — Feed filtered to following**
 - Update `feed_service.dart` to query only posts from users the current user follows
-- Use Firestore `where('authorId', whereIn: followingIds)` pattern (handle >10 limit if needed)
+- Use Firestore `where('userId', whereIn: followingIds)` pattern with batching for >30 following
 
 ---
 

@@ -12,49 +12,19 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  List<DogPost> _posts = [];
-  bool _isLoading = true;
   late final String _currentUserId;
+  late final Stream<List<DogPost>> _feedStream;
 
   @override
   void initState() {
     super.initState();
     _currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    _loadFeed();
+    _feedStream = FeedService.instance.watchFeedPosts(currentUserId: _currentUserId);
   }
 
-  Future<void> _loadFeed() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<void> _handleLike(String postId) async {
     try {
-      final posts = await FeedService.instance.getFeedPosts();
-      setState(() {
-        _posts = posts;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading feed: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleLike(DogPost post) async {
-    try {
-      final updatedPost = await FeedService.instance.toggleLike(post.id, _currentUserId);
-      setState(() {
-        final index = _posts.indexWhere((p) => p.id == post.id);
-        if (index != -1) {
-          _posts[index] = updatedPost;
-        }
-      });
+      await FeedService.instance.toggleLike(postId, _currentUserId);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,45 +34,40 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     }
   }
 
-  void _handleComment(DogPost post) {
-    // TODO: Implement comment functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Comments coming soon!')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Feed'),
         backgroundColor: Colors.brown.shade50,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadFeed,
-          ),
-        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _posts.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadFeed,
-                  child: ListView.builder(
-                    itemCount: _posts.length,
-                    itemBuilder: (context, index) {
-                      final post = _posts[index];
-                      return DogPostCard(
-                        post: post,
-                        currentUserId: _currentUserId,
-                        onLike: () => _handleLike(post),
-                        onComment: () => _handleComment(post),
-                      );
-                    },
-                  ),
-                ),
+      body: StreamBuilder<List<DogPost>>(
+        stream: _feedStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading feed: ${snapshot.error}'));
+          }
+          final posts = snapshot.data;
+          if (posts == null || posts.isEmpty) {
+            return _buildEmptyState();
+          }
+          return ListView.builder(
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              final post = posts[index];
+              return DogPostCard(
+                key: ValueKey(post.id),
+                post: post,
+                currentUserId: _currentUserId,
+                onLike: () => _handleLike(post.id),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -133,15 +98,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               color: Colors.grey.shade600,
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _loadFeed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.brown,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Refresh Feed'),
           ),
         ],
       ),

@@ -1,25 +1,64 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../models/dog_post.dart';
+import '../services/feed_service.dart';
 
-class DogPostCard extends StatelessWidget {
+class DogPostCard extends StatefulWidget {
   final DogPost post;
   final String currentUserId;
   final VoidCallback? onLike;
-  final VoidCallback? onComment;
 
   const DogPostCard({
     super.key,
     required this.post,
     required this.currentUserId,
     this.onLike,
-    this.onComment,
   });
 
   @override
+  State<DogPostCard> createState() => _DogPostCardState();
+}
+
+class _DogPostCardState extends State<DogPostCard> {
+  bool _isExpanded = false;
+  late final TextEditingController _commentController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitComment() async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty || _isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await FeedService.instance.addComment(widget.post.id, text);
+      _commentController.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error posting comment: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isLiked = post.isLikedByUser(currentUserId);
-    
+    final post = widget.post;
+    final isLiked = post.isLikedByUser(widget.currentUserId);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
@@ -72,7 +111,7 @@ class DogPostCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Dog photo (if available)
           if (post.photoUrl != null)
             SizedBox(
@@ -80,7 +119,7 @@ class DogPostCard extends StatelessWidget {
               height: 250,
               child: _buildDogImage(post.photoUrl!),
             ),
-          
+
           // Dog details
           Padding(
             padding: const EdgeInsets.all(16),
@@ -111,7 +150,7 @@ class DogPostCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Breed and color
                 Row(
                   children: [
@@ -127,7 +166,7 @@ class DogPostCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                
+
                 // Location
                 Row(
                   children: [
@@ -145,13 +184,13 @@ class DogPostCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Like and comment buttons
                 Row(
                   children: [
                     // Like button
                     GestureDetector(
-                      onTap: onLike,
+                      onTap: widget.onLike,
                       child: Row(
                         children: [
                           Icon(
@@ -171,20 +210,22 @@ class DogPostCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 24),
-                    
+
                     // Comment button
                     GestureDetector(
-                      onTap: onComment,
+                      onTap: () => setState(() => _isExpanded = !_isExpanded),
                       child: Row(
                         children: [
                           Icon(
-                            Icons.chat_bubble_outline,
+                            _isExpanded
+                                ? Icons.chat_bubble
+                                : Icons.chat_bubble_outline,
                             color: Colors.grey.shade600,
                             size: 24,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${post.comments.length}',
+                            '${post.commentCount}',
                             style: TextStyle(
                               color: Colors.grey.shade700,
                               fontSize: 14,
@@ -194,6 +235,118 @@ class DogPostCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+
+          // Comment section (expandable)
+          if (_isExpanded) _buildCommentSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentSection() {
+    return Column(
+      children: [
+        const Divider(height: 1),
+        StreamBuilder<List<DogPostComment>>(
+          stream: FeedService.instance.watchComments(widget.post.id),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final comments = snapshot.data ?? [];
+            return Column(
+              children: comments.map((comment) => _buildCommentTile(comment)).toList(),
+            );
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _commentController,
+                  decoration: InputDecoration(
+                    hintText: 'Add a comment...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    isDense: true,
+                  ),
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _submitComment(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _isSubmitting
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.send),
+                      color: Colors.brown,
+                      onPressed: _submitComment,
+                    ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommentTile(DogPostComment comment) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: Colors.brown.shade200,
+            backgroundImage: comment.userProfilePicture != null
+                ? (comment.userProfilePicture!.startsWith('/')
+                    ? FileImage(File(comment.userProfilePicture!))
+                    : NetworkImage(comment.userProfilePicture!) as ImageProvider)
+                : null,
+            child: comment.userProfilePicture == null
+                ? Icon(Icons.person, size: 14, color: Colors.brown.shade600)
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    style: DefaultTextStyle.of(context).style.copyWith(fontSize: 14),
+                    children: [
+                      TextSpan(
+                        text: '${comment.userName} ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(text: comment.content),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatTimeAgo(comment.createdAt),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                 ),
               ],
             ),

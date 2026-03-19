@@ -98,18 +98,21 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 
 ## Feature 5: Home Feed Polish
 
-**5.1 — Real-time feed updates**
+**[x] 5.1 — Real-time feed updates**
 - Convert `home_feed_screen.dart` to use a Firestore `snapshots()` stream instead of a one-time fetch
-- Show a loading skeleton while initial data loads
+- `FeedService.watchFeedPosts()` batches `whereIn` queries for >30 following and merges streams
+- Removed refresh button — stream handles live updates automatically
 
-**5.2 — Like functionality with Firestore**
+**[x] 5.2 — Like functionality with Firestore**
 - Update like/unlike to write `likedByUserIds` in Firestore atomically (`FieldValue.arrayUnion/arrayRemove`)
-- Reflect like state and count in real time on `dog_post_card.dart`
+- Reflect like state and count in real time via the feed stream
 
-**5.3 — Comments**
-- Add inline comment thread to `dog_post_card.dart` (expandable)
-- Write new comments to the `comments` array on the `DogPost` document
-- Show comment author name and timestamp
+**[x] 5.3 — Comments**
+- Added `commentCount` field to `DogPost` (Firestore-backed, incremented atomically via `FieldValue.increment`)
+- Added `toFirestore()` / `fromFirestore()` to `DogPostComment`
+- `FeedService.watchComments(postId)` streams comments subcollection in real time
+- `FeedService.addComment(postId, content)` writes to `dogPosts/{id}/comments` and increments `commentCount`
+- `DogPostCard` converted to `StatefulWidget` with expandable comment thread (tap comment icon to toggle)
 
 ---
 
@@ -150,14 +153,21 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 
 ## Feature 8: Photo Handling
 
-**8.1 — Image picker integration**
-- Add `image_picker` package
-- Wire photo selection in `log_dog_screen.dart` and `add_dog_screen.dart`
-- Wire profile photo selection in onboarding and profile edit
+**[x] 8.1 — Image picker integration**
+- `image_picker` package already added and wired in `log_dog_screen.dart` (gallery + camera)
+- Profile photo selection wired in onboarding and profile edit screens
+- **Known limitation**: `log_dog_screen.dart` previously stored the raw `image_picker` temp file path
+  as `photoUrl` in Firestore. These paths (`/tmp/image_picker_*.jpg`) are short-lived simulator/device
+  temp files — they are deleted by the OS and are meaningless to other users or on subsequent sessions.
+  This caused `PathNotFoundException` errors in the feed. Fixed by setting `photoUrl: null` on post
+  creation until Storage upload is implemented in 8.2.
 
 **8.2 — Firebase Storage upload**
 - Create `lib/services/storage_service.dart` with `uploadDogPhoto(file)` and `uploadProfilePhoto(file)`
-- Upload on form submit; store returned URL in Firestore document
+- In `log_dog_screen.dart`: call `StorageService.uploadDogPhoto(_imageFile!)` before `createPost`;
+  pass the returned download URL as `photoUrl` on the `DogPost`
+- Same pattern for profile photos in onboarding and profile edit screens
+- Store the returned HTTPS download URL (not local path) in the Firestore document
 
 ---
 

@@ -90,6 +90,7 @@ class _LogDogScreenState extends State<LogDogScreen> {
 
   Future<void> _loadCurrentUser() async {
     final user = await ProfileService.instance.loadProfile();
+    if (!mounted) return;
     setState(() {
       _currentUser = user;
     });
@@ -205,7 +206,9 @@ class _LogDogScreenState extends State<LogDogScreen> {
         color: _colorController.text.trim(),
         location: _locationController.text.trim(),
         rating: _rating,
-        photoUrl: _imageFile?.path,
+        // Local temp paths are not persisted to Firestore — photo upload
+        // will be wired up in Feature 8 (Firebase Storage).
+        photoUrl: null,
         createdAt: DateTime.now(),
       );
 
@@ -238,9 +241,11 @@ class _LogDogScreenState extends State<LogDogScreen> {
         );
       }
     } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 

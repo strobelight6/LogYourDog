@@ -18,6 +18,7 @@ class DogPost {
   final DateTime createdAt;
   final List<String> likedByUserIds;
   final List<DogPostComment> comments;
+  final int commentCount;
 
   DogPost({
     required this.id,
@@ -34,6 +35,7 @@ class DogPost {
     required this.createdAt,
     List<String>? likedByUserIds,
     List<DogPostComment>? comments,
+    this.commentCount = 0,
   }) : likedByUserIds = likedByUserIds ?? [],
        comments = comments ?? [];
 
@@ -52,6 +54,7 @@ class DogPost {
     DateTime? createdAt,
     List<String>? likedByUserIds,
     List<DogPostComment>? comments,
+    int? commentCount,
   }) {
     return DogPost(
       id: id ?? this.id,
@@ -68,6 +71,7 @@ class DogPost {
       createdAt: createdAt ?? this.createdAt,
       likedByUserIds: likedByUserIds ?? this.likedByUserIds,
       comments: comments ?? this.comments,
+      commentCount: commentCount ?? this.commentCount,
     );
   }
 
@@ -120,6 +124,7 @@ class DogPost {
       'taggedDogId': taggedDogId,
       'createdAt': Timestamp.fromDate(createdAt),
       'likedByUserIds': likedByUserIds,
+      'commentCount': commentCount,
     };
   }
 
@@ -141,6 +146,7 @@ class DogPost {
       taggedDogId: data['taggedDogId'] as String?,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       likedByUserIds: List<String>.from(data['likedByUserIds'] as List? ?? []),
+      commentCount: data['commentCount'] as int? ?? 0,
     );
   }
 
@@ -192,6 +198,28 @@ class DogPostComment {
       'content': content,
       'createdAt': createdAt.toIso8601String(),
     };
+  }
+
+  Map<String, dynamic> toFirestore() => {
+    'userId': userId,
+    'userName': userName,
+    'userProfilePicture': userProfilePicture,
+    'content': content,
+    'createdAt': Timestamp.fromDate(createdAt),
+  };
+
+  factory DogPostComment.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data()!;
+    return DogPostComment(
+      id: doc.id,
+      userId: data['userId'] as String,
+      userName: data['userName'] as String,
+      userProfilePicture: data['userProfilePicture'] as String?,
+      content: data['content'] as String,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
   }
 
   factory DogPostComment.fromJson(Map<String, dynamic> json) {

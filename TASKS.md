@@ -94,6 +94,11 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - Update `feed_service.dart` to query only posts from users the current user follows
 - Use Firestore `where('userId', whereIn: followingIds)` pattern with batching for >30 following
 
+**4.5 — Suggested users on Search idle state**
+- [ ] 4.5.1 — Add `ProfileService.getSuggestedUsers({int limit = 10})` — queries `users` ordered by `createdAt` desc, excludes current user
+- [ ] 4.5.2 — Show suggested list as idle state in `search_screen.dart` under "People you might know" heading
+- [ ] 4.5.3 — (Optional) Denormalize `followerCount` on `users` doc via `FieldValue.increment` in FollowService — eliminates N fan-out reads in search results (existing docs default to 0)
+
 ---
 
 ## Feature 5: Home Feed Polish
@@ -114,19 +119,37 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - `FeedService.addComment(postId, content)` writes to `dogPosts/{id}/comments` and increments `commentCount`
 - `DogPostCard` converted to `StatefulWidget` with expandable comment thread (tap comment icon to toggle)
 
+**5.4 — Discover feed for new/unfollowing users**
+- [ ] 5.4.1 — Add `FeedService.getDiscoverPosts({int limit = 20})` — queries `dogPosts` globally ordered by `createdAt` desc (one-time fetch)
+- [ ] 5.4.2 — In `home_feed_screen.dart`, detect empty stream and render a "Discover" list with a banner: "Follow users to see their posts here"
+- [ ] 5.4.3 — Add inline Follow button on each discover card (via FollowService)
+- [ ] 5.4.4 — Add "Find more users" button at bottom routing to Search tab
+
+**5.5 — Post detail screen + tappable cards**
+- [ ] 5.5.1 — Create `lib/screens/dog_post_detail_screen.dart` (full post + comments + comment input)
+- [ ] 5.5.2 — Wrap `DogPostCard` in `InkWell` → routes to detail screen on tap (comment icon tap still expands inline — existing behavior kept)
+- [ ] 5.5.3 — Make author avatar and display name tappable → ProfileScreen (guarded when userId == currentUserId)
+- [ ] 5.5.4 — Update Feature 7.2 notifications routing to push post detail screen when notification type is `postLiked`
+
 ---
 
-## Feature 6: Collections Screen
+## Feature 6: Collections Screen (breed progress tracker)
 
-**6.1 — Collections logic**
-- In `collections_screen.dart`, fetch the current user's `DogPost` logs from Firestore
-- Group logs by `breed`, `color`, and `rating tier` (Low/Mid/High)
-- Display each group with count (e.g., "Golden Retrievers: 3 logged")
+**[ ] 6.1 — Extract shared breed/color constants**
+- Extract `_commonBreeds` and `_commonColors` from `log_dog_screen.dart` and `add_dog_screen.dart` to `lib/constants/dog_data.dart`
 
-**6.2 — Progress tracking**
-- For each breed/color group, compute % toward a known total (use a hardcoded list of common breeds/colors as the denominator)
-- Show a progress bar per group
-- Trigger in-app milestone badge display at 25%, 50%, 100%
+**[ ] 6.2 — Rewrite `collections_screen.dart`**
+- Fetch user's posts via `FeedService.getUserPosts(currentUserId)`
+- Group by breed → `Map<String, List<DogPost>>`
+- Compute progress ratio: encountered / total known breeds
+- Two tabs: "By Breed" and "By Color"
+- Each entry: breed name, count, `LinearProgressIndicator`
+- Sort by count desc (rarest at bottom as aspirational targets)
+
+**[ ] 6.3 — Wire milestone notification trigger**
+- After post creation in `log_dog_screen.dart`, compute updated breed count
+- Call `NotificationService.notifyMilestoneReached` at 25 / 50 / 100%
+- Show `SnackBar` / `Dialog` as immediate celebration UI
 
 ---
 
@@ -189,6 +212,48 @@ Chunked by feature. Each task is scoped to be completable in a single Claude ses
 - Use debug provider for emulator/simulator; production providers for release builds
 - Enforce App Check in the Firebase console for Firestore and Storage (enforcement blocks requests without a valid attestation)
 - Note: requires a signed production build to test end-to-end; do this step with a release candidate
+
+---
+
+## Feature 11: Dog Tagging Loop
+
+**Dependencies:** Feature 8.2 (Storage) should land first so dog photos are meaningful. Feature 7.1 (NotificationService) must land first.
+
+**[ ] 11.1 — Dog tag step in `log_dog_screen.dart`**
+- Optional "Tag an existing dog" row → bottom sheet with `DogService.searchDogs()` results
+- On select: display chip "Tagging: Buddy by @alex"
+- On submit: write `taggedDogId` on DogPost, call `FieldValue.increment(1)` on dog doc directly (atomic — no read-then-write race)
+
+**[ ] 11.2 — Schema update in `lib/models/notification.dart`**
+- Add `dogLogged` to `NotificationType` enum
+- Add optional `dogId` field to `AppNotification` with `toFirestore()` / `fromFirestore()` support
+- Update Firestore security rules for the new field
+
+**[ ] 11.3 — Wire notification after post creation**
+- After post with `taggedDogId` is created, look up dog's ownerId → write `dogLogged` notification (skip if owner == current user)
+- Add `NotificationService.notifyDogLogged(ownerId, actorName, dogId, postId)` in Feature 7.1 service
+
+**[ ] 11.4 — Create `lib/screens/dog_detail_screen.dart`**
+- Shows DogProfile fields (photo, breed, description, `timesLogged` count) and owner info
+- Feed of all DogPosts where `taggedDogId == dog.id`
+- Make dog cards on `profile_screen.dart` tappable (currently dead — no action on tap)
+
+**[ ] 11.5 — Firestore rules: allow any authenticated user to increment `timesLogged`**
+- Allow increment when creating a DogPost with a valid `taggedDogId`
+
+---
+
+## Feature 12: "Log Again" Quick-Relog
+
+**Dependency:** Feature 5.5 (post detail) for the overflow menu surface.
+
+**[ ] 12.1 — `LogDogScreen` accepts optional `DogPost? prefillFrom` param**
+- Pre-populates name, breed, color, `taggedDogId` from it in `initState`
+
+**[ ] 12.2 — Add "Log Again" option to DogPostCard overflow menu (own posts only)**
+- Pushes `LogDogScreen` with `prefillFrom` set
+
+**[ ] 12.3 — Wire callback: on successful relog, pop back to previous screen**
 
 ---
 
